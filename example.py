@@ -17,7 +17,7 @@ def example_with_embedding_and_neural_net(train_set, test_set):
     trunc_type='post'
     padding_type='post'
     oov_tok = "<OOV>"
-    training_size = 100_000
+    training_size = 6_000
 
     training_sentences = sentences1[0:training_size]
     validation_sentences = sentences1[training_size:]
@@ -51,8 +51,30 @@ def example_with_embedding_and_neural_net(train_set, test_set):
     num_epochs = 30
     history = model.fit(training_padded, training_labels, epochs=num_epochs, validation_data=(validation_padded, validation_labels), verbose=2)
     model.evaluate(testing_padded, testing_labels)
-    y_predicted = model.predict(testing_padded)
-    tf.math.confusion_matrix(testing_labels, y_predicted)
+
+    validation_predicted = (model.predict(validation_padded) > 0.5).astype(int)
+    val_cm = tf.math.confusion_matrix(validation_labels, validation_predicted)
+    accuracy_v = 100 * (val_cm[0][0] + val_cm[1][1]) / (sum(val_cm[0]) + sum(val_cm[1]))
+    # aka TPR (True Positive Rate), recall, sensitivity
+    accuracy_v_0 = 100 * val_cm[0][0] / (val_cm[0][0] + val_cm[0][1])
+    # aka FPR (False Positive Rate), specificity, selectivity
+    accuracy_v_1 = 100 * val_cm[1][1] / (val_cm[1][0] + val_cm[1][1])
+    print("Validation:")
+    print(f"accuracy_v: {accuracy_v}")
+    print(val_cm)
+    print(f"accuracy_v_0: {accuracy_v_0}, accuracy_v_1: {accuracy_v_1}")
+
+    y_predicted = (model.predict(testing_padded) > 0.5).astype(int)
+    test_cm = tf.math.confusion_matrix(testing_labels, y_predicted)
+    accuracy_t = 100 * (test_cm[0][0] + test_cm[1][1]) / (sum(test_cm[0]) + sum(test_cm[1]))
+    # aka TPR (True Positive Rate), recall, sensitivity
+    accuracy_t_0 = 100 * test_cm[0][0] / (test_cm[0][0] + test_cm[0][1])
+    # aka FPR (False Positive Rate), specificity, selectivity
+    accuracy_t_1 = 100 * test_cm[1][1] / (test_cm[1][0] + test_cm[1][1])
+    print("Test:")
+    print(f"accuracy_t: {accuracy_t}")
+    print(test_cm)
+    print(f"accuracy_t_0: {accuracy_t_0}, accuracy_t_1: {accuracy_t_1}")
 
 if __name__ == "__main__":
     datasets = load_datasets()
@@ -62,12 +84,18 @@ if __name__ == "__main__":
     txts_with_labels = add_labels(txts)
     concat_with_labels = add_labels(prompts_and_txts_concat)
 
+    train_test_pct = 0.8
     # Training on the first domain, test on the second
-    train_set = concat_with_labels[0]
-    train_set.extend(concat_with_labels[1])
+    train_set = concat_with_labels[0][:2_400]
+    train_set.extend(concat_with_labels[1][:3_400])
+    train_set.extend(concat_with_labels[2][:80])
+    train_set.extend(concat_with_labels[3][:300])
     shuffle_dataset(train_set)
-    test_set = concat_with_labels[2]
-    test_set.extend(concat_with_labels[3])
+
+    test_set = concat_with_labels[0][2_400:2_500]
+    test_set.extend(concat_with_labels[1][3_400:])
+    test_set.extend(concat_with_labels[2][80:])
+    test_set.extend(concat_with_labels[3][300:])
     shuffle_dataset(test_set)
 
 
